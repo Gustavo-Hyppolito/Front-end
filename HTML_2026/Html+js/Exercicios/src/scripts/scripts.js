@@ -47,19 +47,3 @@ if (numeroUsuario === numeroSorteado) {
 
 //////////////////////////////////////
 
-class Veiculo {
-    constructor(modelo, marca, ano) {
-        this.modelo = modelo;
-        this.marca = marca;
-        this.ano = ano;
-    }
-
-    idadeVeiculo() {
-        let anoAtual = new Date().getFullYear();
-        return anoAtual - this.ano;
-    }
-}
-
-const carro = new Veiculo("Corolla", "Toyota", 2020);
-
-alert("O veículo " + carro.modelo + " possui " + carro.idadeVeiculo() + " anos.");

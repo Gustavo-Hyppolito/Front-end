@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Boss Rush</title>
+<style>
+body{margin:0;background:black;overflow:hidden}
+canvas{display:block;margin:auto;background:#111}
+</style>
+</head>
+<body>
+
+<canvas id="game" width="900" height="500"></canvas>
+
+<script>
+const c=document.getElementById("game");
+const ctx=c.getContext("2d");
+const keys={};
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+// ================= ESTADO =================
+let state="menu",selectedBoss=0;
+
+// ================= PLAYER =================
+let player;
+const playerBase={w:26,h:26,speed:4,maxHp:6};
+
+// ================= BOSSES =================
+const bossData=[
+ {name:"Slime King",hp:300,color:"#6a00ff"},
+ {name:"Fire Devil",hp:340,color:"#aa0000"},
+ {name:"Skull Mage",hp:320,color:"#bbbbbb"},
+ {name:"Mecha Eye",hp:380,color:"#00ffff"}
+];
+let boss=null;
+
+// ================= PROJÉTEIS =================
+let bullets=[],bossBullets=[],shootCD=0;
+
+// ================= RESET =================
+function resetPlayer(){
+ player={
+  x:100,y:230,w:26,h:26,speed:4,
+  hp:6,
+  inv:0,visible:true,
+  dashCD:180,
+  dashing:false,
+  dashTime:0
+ };
+}
+
+function loadBoss(i){
+ const b=bossData[i];
+ boss={
+  name:b.name,
+  x:600,y:200,
+  baseSize:70,size:70,
+  hp:b.hp,maxHp:b.hp,
+  phase:1,color:b.color,
+  vx:2*(Math.random()<0.5?-1:1),
+  vy:2*(Math.random()<0.5?-1:1),
+  atkCD:0
+ };
+ bullets=[];bossBullets=[];
+}
+
+// ================= MENU =================
+function updateMenu(){
+ if(keys.w){selectedBoss=(selectedBoss+bossData.length-1)%bossData.length;keys.w=false}
+ if(keys.s){selectedBoss=(selectedBoss+1)%bossData.length;keys.s=false}
+ if(keys.enter){
+  resetPlayer();loadBoss(selectedBoss);state="game";
+ }
+}
+
+function drawMenu(){
+ ctx.clearRect(0,0,c.width,c.height);
+ ctx.fillStyle="white";
+ ctx.font="32px Arial";
+ ctx.fillText("BOSS RUSH",350,80);
+ ctx.font="22px Arial";
+ bossData.forEach((b,i)=>{
+  ctx.fillStyle=i===selectedBoss?"yellow":"white";
+  ctx.fillText(b.name,360,160+i*40);
+ });
+ ctx.font="14px Arial";
+ ctx.fillText("W/S selecionar  ENTER iniciar",345,420);
+}
+
+// ================= PLAYER =================
+function movePlayer(){
+ if(player.dashing) return;
+
+ if(keys.w)player.y-=player.speed;
+ if(keys.s)player.y+=player.speed;
+ if(keys.a)player.x-=player.speed;
+ if(keys.d)player.x+=player.speed;
+
+ player.x=Math.max(0,Math.min(c.width-player.w,player.x));
+ player.y=Math.max(0,Math.min(c.height-player.h,player.y));
+}
+
+function dash(){
+ if(keys[" "] && player.dashCD>=180){
+  player.dashing=true;
+  player.dashTime=12;
+  player.inv=20;
+  player.dashCD=0;
+
+  let dx=(keys.d?1:0)-(keys.a?1:0);
+  let dy=(keys.s?1:0)-(keys.w?1:0);
+  if(dx===0&&dy===0) dx=1;
+
+  player.dvx=dx*12;
+  player.dvy=dy*12;
+ }
+}
+
+function updateDash(){
+ if(player.dashing){
+  player.x+=player.dvx;
+  player.y+=player.dvy;
+  player.dashTime--;
+  if(player.dashTime<=0) player.dashing=false;
+ }
+ if(player.dashCD<180) player.dashCD++;
+}
+
+function shoot(){
+ if(shootCD>0)shootCD--;
+ if(keys.k&&shootCD===0){
+  bullets.push({x:player.x+26,y:player.y+13,s:9,d:1});
+  shootCD=8;
+ }
+ if(keys.l&&shootCD===0){
+  bullets.push({x:player.x+26,y:player.y+13,s:4,d:4});
+  shootCD=25;
+ }
+}
+
+// ================= FASES =================
+function updatePhase(){
+ if(boss.hp<=boss.maxHp*0.66) boss.phase=2;
+ if(boss.hp<=boss.maxHp*0.33) boss.phase=3;
+ boss.size=boss.baseSize + boss.phase*10;
+}
+
+// ================= MOVIMENTO =================
+function bossMovement(){
+ boss.x+=boss.vx*(1+boss.phase*0.3);
+ boss.y+=boss.vy*(1+boss.phase*0.3);
+ if(boss.x<300||boss.x+boss.size>c.width) boss.vx*=-1;
+ if(boss.y<0||boss.y+boss.size>c.height) boss.vy*=-1;
+}
+
+// ================= ATAQUES =================
+function bossAttack(){
+ if(boss.atkCD>0){boss.atkCD--;return;}
+ const cx=boss.x+boss.size/2,cy=boss.y+boss.size/2;
+
+ if(boss.name==="Slime King"){
+  for(let i=0;i<boss.phase;i++)
+   bossBullets.push({x:cx,y:cy,vx:-2,vy:(Math.random()-0.5)*6});
+  boss.atkCD=60-boss.phase*10;
+ }
+
+ if(boss.name==="Fire Devil"){
+  for(let i=-boss.phase;i<=boss.phase;i++)
+   bossBullets.push({x:cx,y:cy,vx:-4,vy:i*2});
+  boss.atkCD=45-boss.phase*8;
+ }
+
+ if(boss.name==="Skull Mage"){
+  let dx=player.x-cx,dy=player.y-cy,d=Math.hypot(dx,dy)||1;
+  bossBullets.push({x:cx,y:cy,vx:(dx/d)*3*boss.phase,vy:(dy/d)*3*boss.phase});
+  boss.atkCD=70-boss.phase*10;
+ }
+
+ if(boss.name==="Mecha Eye"){
+  for(let a=0;a<Math.PI*2;a+=Math.PI/(4+boss.phase))
+   bossBullets.push({x:cx,y:cy,vx:Math.cos(a)*3,vy:Math.sin(a)*3});
+  boss.atkCD=90-boss.phase*10;
+ }
+}
+
+// ================= UPDATE =================
+function updateGame(){
+ movePlayer();
+ dash();
+ updateDash();
+ shoot();
+ updatePhase();
+ bossMovement();
+ bossAttack();
+
+ bullets.forEach(b=>b.x+=b.s);
+ bossBullets.forEach(b=>{b.x+=b.vx;b.y+=b.vy});
+
+ bullets=bullets.filter(b=>{
+  if(b.x>boss.x&&b.x<boss.x+boss.size&&b.y>boss.y&&b.y<boss.y+boss.size){
+   boss.hp-=b.d;return false;
+  }
+  return b.x<c.width;
+ });
+
+ bossBullets=bossBullets.filter(b=>{
+  if(player.inv<=0&&b.x>player.x&&b.x<player.x+26&&b.y>player.y&&b.y<player.y+26){
+   player.hp--;
+   player.inv=60;
+   return false;
+  }
+  return b.x>-50&&b.y>-50&&b.y<c.height+50;
+ });
+
+ if(player.inv>0){
+  player.inv--;
+  player.visible=player.inv%6<3;
+ }else player.visible=true;
+
+ if(player.hp<=0) state="dead";
+ if(boss.hp<=0) state="win";
+}
+
+// ================= DRAW =================
+function drawBoss(){
+ ctx.fillStyle=boss.color;
+ if(boss.phase===1){
+  ctx.beginPath();
+  ctx.arc(boss.x+boss.size/2,boss.y+boss.size/2,boss.size/2,0,Math.PI*2);
+  ctx.fill();
+ }
+ if(boss.phase===2){
+  ctx.fillRect(boss.x,boss.y,boss.size,boss.size);
+ }
+ if(boss.phase===3){
+  ctx.beginPath();
+  ctx.moveTo(boss.x+boss.size/2,boss.y);
+  ctx.lineTo(boss.x,boss.y+boss.size);
+  ctx.lineTo(boss.x+boss.size,boss.y+boss.size);
+  ctx.closePath();
+  ctx.fill();
+ }
+}
+
+function drawGame(){
+ ctx.clearRect(0,0,c.width,c.height);
+
+ if(player.visible){
+  ctx.fillStyle="white";
+  ctx.fillRect(player.x,player.y,26,26);
+ }
+
+ drawBoss();
+
+ ctx.fillStyle="yellow";
+ bullets.forEach(b=>ctx.fillRect(b.x,b.y,5,5));
+ ctx.fillStyle="pink";
+ bossBullets.forEach(b=>ctx.fillRect(b.x,b.y,8,8));
+
+ // BARRA VIDA PLAYER
+ ctx.fillStyle="#333";
+ ctx.fillRect(20,c.height-40,120,10);
+ ctx.fillStyle="lime";
+ ctx.fillRect(20,c.height-40,(player.hp/playerBase.maxHp)*120,10);
+
+ // BARRA DASH
+ ctx.fillStyle="#333";
+ ctx.fillRect(20,c.height-25,120,6);
+ ctx.fillStyle="#00aaff";
+ ctx.fillRect(20,c.height-25,(player.dashCD/180)*120,6);
+
+ // BARRA BOSS
+ ctx.fillStyle="#333";
+ ctx.fillRect(250,20,400,14);
+ ctx.fillStyle="red";
+ ctx.fillRect(250,20,(boss.hp/boss.maxHp)*400,14);
+}
+
+// ================= TELAS =================
+function deadScreen(){
+ ctx.fillStyle="rgba(0,0,0,0.7)";
+ ctx.fillRect(0,0,c.width,c.height);
+ ctx.fillStyle="white";
+ ctx.font="32px Arial";
+ ctx.fillText("VOCÊ MORREU",340,240);
+ ctx.font="16px Arial";
+ ctx.fillText("ENTER - MENU",380,280);
+ if(keys.enter) state="menu";
+}
+
+function winScreen(){
+ ctx.fillStyle="rgba(0,0,0,0.7)";
+ ctx.fillRect(0,0,c.width,c.height);
+ ctx.fillStyle="white";
+ ctx.font="32px Arial";
+ ctx.fillText("VITÓRIA!",390,240);
+ ctx.font="16px Arial";
+ ctx.fillText("ENTER - MENU",380,280);
+ if(keys.enter) state="menu";
+}
+
+// ================= LOOP =================
+function loop(){
+ if(state==="menu"){updateMenu();drawMenu();}
+ if(state==="game"){updateGame();drawGame();}
+ if(state==="dead") deadScreen();
+ if(state==="win") winScreen();
+ requestAnimationFrame(loop);
+}
+loop();
+</script>
+
+</body>
+</html>

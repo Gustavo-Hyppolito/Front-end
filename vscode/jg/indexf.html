@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hacker Simulator 2D</title>
+<style>
+body{margin:0;background:#0a0f1f;color:#00ff88;font-family:monospace;text-align:center}
+#ui{padding:20px}
+button{background:#111;border:1px solid #00ff88;color:#00ff88;padding:10px;margin:5px;cursor:pointer}
+button:hover{background:#003322}
+.bar{height:20px;background:#003322;margin:5px auto;width:300px;position:relative}
+.fill{height:100%;background:#00ff88;width:100%}
+.red{background:#ff0044}
+.hidden{display:none}
+input{background:black;color:#00ff88;border:1px solid #00ff88;text-align:center}
+</style>
+</head>
+<body>
+
+<h1>HACKER SIMULATOR</h1>
+
+<div id="ui">
+Nível: <span id="level">1</span> |
+Dinheiro: <span id="money">0</span>
+<br><br>
+
+🔥 Firewall
+<div class="bar"><div id="firewallBar" class="fill"></div></div>
+
+🛡 Antivírus
+<div class="bar"><div id="antivirusBar" class="fill"></div></div>
+
+🔐 Criptografia
+<div class="bar"><div id="cryptoBar" class="fill"></div></div>
+
+⚡ Energia
+<div class="bar"><div id="energyBar" class="fill"></div></div>
+
+🚨 Alerta
+<div class="bar"><div id="alertBar" class="fill red"></div></div>
+
+<br>
+
+<button onclick="scan()">Escanear (10 energia)</button>
+<button onclick="quickAttack()">Ataque Rápido (15 energia)</button>
+<button onclick="heavyAttack()">Ataque Pesado (25 energia)</button>
+
+<div id="minigame" class="hidden">
+<br>
+Decifre a sequência:
+<h2 id="sequence"></h2>
+<input id="answer" placeholder="Digite aqui">
+<button onclick="checkSequence()">Enviar</button>
+</div>
+
+</div>
+
+<script>
+
+let level=1;
+let money=0;
+
+let firewall=100;
+let antivirus=100;
+let crypto=100;
+
+let energy=100;
+let alertLevel=0;
+
+let sequenceAnswer="";
+
+function newSystem(){
+firewall=80+level*10;
+antivirus=70+level*12;
+crypto=90+level*15;
+energy=100;
+alertLevel=0;
+updateUI();
+}
+
+function updateUI(){
+document.getElementById("level").textContent=level;
+document.getElementById("money").textContent=money;
+
+document.getElementById("firewallBar").style.width=firewall+"%";
+document.getElementById("antivirusBar").style.width=antivirus+"%";
+document.getElementById("cryptoBar").style.width=crypto+"%";
+document.getElementById("energyBar").style.width=energy+"%";
+document.getElementById("alertBar").style.width=alertLevel+"%";
+}
+
+function scan(){
+if(energy<10)return;
+energy-=10;
+alertLevel+=5+level;
+randomReduce();
+updateUI();
+checkGameOver();
+}
+
+function quickAttack(){
+if(energy<15)return;
+energy-=15;
+firewall-=10+level*2;
+antivirus-=8+level;
+alertLevel+=10+level*2;
+maybeMinigame();
+updateUI();
+checkWin();
+checkGameOver();
+}
+
+function heavyAttack(){
+if(energy<25)return;
+energy-=25;
+firewall-=20+level*3;
+antivirus-=15+level*2;
+crypto-=15+level*2;
+alertLevel+=20+level*3;
+maybeMinigame();
+updateUI();
+checkWin();
+checkGameOver();
+}
+
+function randomReduce(){
+let r=Math.random();
+if(r<0.33) firewall-=5+level;
+else if(r<0.66) antivirus-=5+level;
+else crypto-=5+level;
+}
+
+function maybeMinigame(){
+if(Math.random()<0.4){
+startMinigame();
+}
+}
+
+function startMinigame(){
+document.getElementById("minigame").classList.remove("hidden");
+let num1=Math.floor(Math.random()*9);
+let num2=Math.floor(Math.random()*9);
+let num3=Math.floor(Math.random()*9);
+sequenceAnswer=""+(num1+num2+num3);
+document.getElementById("sequence").textContent=num1+" + "+num2+" + "+num3+" = ?";
+}
+
+function checkSequence(){
+let input=document.getElementById("answer").value;
+if(input===sequenceAnswer){
+crypto-=20+level*2;
+alertLevel-=10;
+}else{
+alertLevel+=15;
+}
+document.getElementById("answer").value="";
+document.getElementById("minigame").classList.add("hidden");
+updateUI();
+checkWin();
+checkGameOver();
+}
+
+function checkWin(){
+if(firewall<=0 && antivirus<=0 && crypto<=0){
+money+=50*level;
+level++;
+newSystem();
+}
+}
+
+function checkGameOver(){
+if(alertLevel>=100){
+alert("VOCÊ FOI RASTREADO 💀");
+location.reload();
+}
+if(energy<=0){
+alert("SEM ENERGIA 💀");
+location.reload();
+}
+}
+
+newSystem();
+
+</script>
+</body>
+</html>

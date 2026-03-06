@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Tower Defense Ultra</title>
+<style>
+body{margin:0;background:#0f172a;color:white;font-family:Arial;overflow:hidden}
+#ui{position:absolute;top:10px;left:10px;font-size:14px}
+</style>
+</head>
+<body>
+
+<div id="ui">
+Vida: <span id="life">20</span> |
+Ouro: <span id="money">300</span> |
+Wave: <span id="wave">1</span> |
+Torre: <span id="selected">normal</span>
+<br>
+1:N 2:S 3:G 4:Expl 5:Ven 6:Elec 7:Pesada
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+let life=20,money=300,wave=1;
+let enemies=[],towers=[],bullets=[];
+let selectedType="normal";
+
+const path=[
+{x:0,y:300},{x:300,y:300},
+{x:300,y:150},{x:600,y:150},
+{x:600,y:400},{x:canvas.width,y:400}
+];
+
+document.addEventListener("keydown",e=>{
+let map={
+"1":"normal","2":"sniper","3":"ice",
+"4":"explosion","5":"poison",
+"6":"electric","7":"heavy"
+};
+if(map[e.key]) selectedType=map[e.key];
+document.getElementById("selected").textContent=selectedType;
+});
+
+canvas.addEventListener("click",(e)=>{
+let clicked=towers.find(t=>Math.hypot(t.x-e.clientX,t.y-e.clientY)<15);
+if(clicked && money>=60){
+clicked.level++;
+clicked.damage+=2;
+clicked.range+=10;
+money-=60;
+updateUI();
+return;
+}
+
+let cost={
+normal:50,sniper:80,ice:70,
+explosion:100,poison:90,
+electric:120,heavy:150
+}[selectedType];
+
+if(money>=cost){
+towers.push(createTower(e.clientX,e.clientY,selectedType));
+money-=cost;
+updateUI();
+}
+});
+
+function createTower(x,y,type){
+let base={
+normal:{range:120,damage:2,fireRate:40},
+sniper:{range:300,damage:6,fireRate:90},
+ice:{range:110,damage:1,fireRate:50},
+explosion:{range:130,damage:4,fireRate:70},
+poison:{range:120,damage:1,fireRate:45},
+electric:{range:140,damage:3,fireRate:60},
+heavy:{range:150,damage:10,fireRate:120}
+};
+return {x,y,type,level:1,cool:0,...base[type]};
+}
+
+function spawnWave(){
+let count=3+wave*2;
+let hp=5+wave*3;
+let speed=0.8+wave*0.05;
+
+for(let i=0;i<count;i++){
+setTimeout(()=>{
+let boss=wave%5===0 && i===0;
+let finalHP=boss?hp*6:hp;
+
+enemies.push({
+x:path[0].x,y:path[0].y,
+size:boss?35:15,
+hp:finalHP,maxHp:finalHP,
+speed:boss?speed*0.7:speed,
+pathIndex:0,
+slow:0,
+poison:0,
+boss
+});
+},i*400);
+}
+}
+spawnWave();
+
+function updateUI(){
+lifeEl.textContent=life;
+moneyEl.textContent=money;
+waveEl.textContent=wave;
+}
+const lifeEl=document.getElementById("life");
+const moneyEl=document.getElementById("money");
+const waveEl=document.getElementById("wave");
+
+function update(){
+
+enemies.forEach((e,ei)=>{
+
+if(e.poison>0){e.hp-=0.1;e.poison--;}
+if(e.slow>0)e.slow--;
+
+let speed=e.speed*(e.slow>0?0.5:1);
+
+let target=path[e.pathIndex+1];
+if(!target)return;
+
+let angle=Math.atan2(target.y-e.y,target.x-e.x);
+e.x+=Math.cos(angle)*speed;
+e.y+=Math.sin(angle)*speed;
+
+if(Math.hypot(target.x-e.x,target.y-e.y)<5){
+e.pathIndex++;
+if(e.pathIndex>=path.length-1){
+enemies.splice(ei,1);
+life--;
+updateUI();
+if(life<=0){alert("GAME OVER");location.reload();}
+}
+}
+
+if(e.hp<=0){
+money+=e.boss?200:20;
+enemies.splice(ei,1);
+updateUI();
+}
+});
+
+towers.forEach(t=>{
+t.cool--;
+if(t.cool<=0){
+let target=enemies.find(e=>Math.hypot(e.x-t.x,e.y-t.y)<t.range);
+if(target){
+bullets.push({x:t.x,y:t.y,target,type:t.type,damage:t.damage});
+t.cool=t.fireRate;
+}
+}
+});
+
+bullets.forEach((b,bi)=>{
+if(!b.target)return;
+
+let dx=b.target.x-b.x;
+let dy=b.target.y-b.y;
+let dist=Math.hypot(dx,dy);
+b.x+=dx/dist*6;
+b.y+=dy/dist*6;
+
+if(dist<10){
+
+if(b.type==="explosion"){
+enemies.forEach(e=>{
+if(Math.hypot(e.x-b.target.x,e.y-b.target.y)<50)
+e.hp-=b.damage;
+});
+}
+
+else if(b.type==="poison"){
+b.target.poison=120;
+}
+
+else if(b.type==="electric"){
+enemies.slice(0,3).forEach(e=>e.hp-=b.damage);
+}
+
+else if(b.type==="ice"){
+b.target.slow=80;
+b.target.hp-=b.damage;
+}
+
+else{
+b.target.hp-=b.damage;
+}
+
+bullets.splice(bi,1);
+}
+});
+
+if(enemies.length===0){
+wave++;
+spawnWave();
+updateUI();
+}
+}
+
+function draw(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.strokeStyle="#334155";
+ctx.lineWidth=25;
+ctx.beginPath();
+ctx.moveTo(path[0].x,path[0].y);
+path.forEach(p=>ctx.lineTo(p.x,p.y));
+ctx.stroke();
+
+towers.forEach(t=>{
+ctx.beginPath();
+let colors={
+normal:"cyan",sniper:"orange",ice:"lightblue",
+explosion:"red",poison:"green",
+electric:"yellow",heavy:"white"
+};
+ctx.fillStyle=colors[t.type];
+ctx.arc(t.x,t.y,15,0,Math.PI*2);
+ctx.fill();
+});
+
+enemies.forEach(e=>{
+ctx.beginPath();
+ctx.fillStyle=e.boss?"purple":"crimson";
+ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="lime";
+ctx.fillRect(e.x-15,e.y-25,(e.hp/e.maxHp)*30,5);
+});
+
+ctx.fillStyle="yellow";
+bullets.forEach(b=>{
+ctx.beginPath();
+ctx.arc(b.x,b.y,4,0,Math.PI*2);
+ctx.fill();
+});
+}
+
+function loop(){
+update();
+draw();
+requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

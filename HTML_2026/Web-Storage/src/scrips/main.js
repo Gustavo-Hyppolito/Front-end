@@ -71,15 +71,16 @@ function inicializarSubtotal() {
 // ─────────────────────────────────────────────────────────────────────────────
 function inicializarHoverCards() {
   const cards = document.querySelectorAll(".card");
-
-  cards.forEach(function (card) {
-    card.addEventListener("mouseenter", function () {
-      // Espaço para lógica futura — visual tratado pelo CSS :hover
-    });
-    card.addEventListener("mouseleave", function () {
-      // Limpeza de estado ao sair do card
-    });
+cards.forEach((card) => {
+  card.addEventListener("mouseenter", () => {
+    card.style.transform = "translateY(-5px)";
+    card.style.boxShadow = "0 10px 20px rgba(0,0,0,0.1)";
   });
+  card.addEventListener("mouseleave", () => {
+    card.style.transform = "translateY(0)";
+    card.style.boxShadow = "none";
+  });
+});
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

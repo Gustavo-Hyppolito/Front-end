@@ -1,14 +1,3 @@
-/* ==========================================================
-   PEDIDOS.JS — Lógica da página de Pedidos (pedidos.html)
-
-   ROADMAP DESTE ARQUIVO:
-   [✔] Aula 8  — Criado: adicionarItemAoResumo() e o botão Limpar
-                 migraram do aula7.js para cá e evoluíram.
-                 Em vez de criar itens na mesma página do cardápio,
-                 agora lemos do localStorage e exibimos em pedidos.html.
-   [ ] Futuro  — Substituir localStorage por chamadas à API (back-end)
-   ========================================================== */
-
 document.addEventListener("DOMContentLoaded", function () {
   renderizarPedidos();
   configurarLimparPedidos();

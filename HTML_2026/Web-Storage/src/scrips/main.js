@@ -196,7 +196,7 @@ function atualizarPrecoCard(box) {
 //   pedidos.js lê essa mesma chave "techfood_pedidos" e exibe em pedidos.html.
 // ─────────────────────────────────────────────────────────────────────────────
 function salvarPedido(pedido) {
-  const lista = JSON.parse(localStorage.getItem("techfood_pedidos") || "[]");
+   JSON.parse(localStorage.getItem("techfood_pedidos") || "[]");
   pedido.subtotal = pedido.preco * pedido.qtd;
   lista.push(pedido);
   localStorage.setItem("techfood_pedidos", JSON.stringify(lista));
